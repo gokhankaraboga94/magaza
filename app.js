@@ -7,15 +7,19 @@ import {
   ref,
   push,
   set,
+  get,
   update,
   remove,
   onValue
 } from "./firebase.js";
 
+const isAdminPage = !!document.getElementById('appScreen');
+
 // ── STATE ──────────────────────────────────────────────────────────────────
 let records = {};
 let editingId = null;
 let currentView = 'list'; // list | form | detail
+let hasSyncedPublic = false;
 
 // ── HELPERS ───────────────────────────────────────────────────────────────
 function genId() { return Date.now().toString(36).toUpperCase(); }
@@ -27,6 +31,37 @@ function statusLabel(s) {
 function statusColor(s) {
   const m = { onarim:'#f59e0b', parca:'#8b5cf6', test:'#3b82f6', hazir:'#10b981', teslim:'#6b7280' };
   return m[s] || '#6b7280';
+}
+
+function toPublicRecord(r) {
+  return {
+    servisNo: r.servisNo || '',
+    durum: r.durum || '',
+    olusturma: r.olusturma || '',
+    guncelleme: r.guncelleme || '',
+    ad: r.ad || '',
+    soyad: r.soyad || '',
+    tel: r.tel || '',
+    marka: r.marka || '',
+    model: r.model || '',
+    imei: r.imei || '',
+    renk: r.renk || '',
+    aksesuar: r.aksesuar || '',
+    degistirilenparca: r.degistirilenparca || '',
+    odemeYontemi: r.odemeYontemi || '',
+    alinanOdeme: r.alinanOdeme ?? '',
+    odemeTarihi: r.odemeTarihi || ''
+  };
+}
+
+async function upsertPublic(servisNo, record) {
+  if (!servisNo) return;
+  await set(ref(db, 'servis_public/' + servisNo), toPublicRecord(record));
+}
+
+async function removePublic(servisNo) {
+  if (!servisNo) return;
+  await remove(ref(db, 'servis_public/' + servisNo));
 }
 
 // ── AUTH ──────────────────────────────────────────────────────────────────
@@ -49,32 +84,48 @@ window.doLogout = async function() {
   await signOut(auth);
 };
 
-onAuthStateChanged(auth, user => {
-  document.getElementById('loginScreen').style.display = user ? 'none' : 'flex';
-  document.getElementById('appScreen').style.display   = user ? 'block' : 'none';
-  if (user) {
-    document.getElementById('userEmail').textContent = user.email;
-    loadRecords();
-  }
-});
+if (isAdminPage) {
+  onAuthStateChanged(auth, user => {
+    const loginScreen = document.getElementById('loginScreen');
+    const appScreen = document.getElementById('appScreen');
+    if (loginScreen) loginScreen.style.display = user ? 'none' : 'flex';
+    if (appScreen) appScreen.style.display   = user ? 'block' : 'none';
+    if (user) {
+      const emailEl = document.getElementById('userEmail');
+      if (emailEl) emailEl.textContent = user.email;
+      loadRecords();
+    }
+  });
+}
 
 // ── DB ────────────────────────────────────────────────────────────────────
 function loadRecords() {
   const r = ref(db, 'servis');
   onValue(r, snap => {
     records = snap.val() || {};
+    if (!hasSyncedPublic) {
+      hasSyncedPublic = true;
+      Object.values(records).forEach(rec => {
+        if (rec && rec.servisNo) upsertPublic(rec.servisNo, rec);
+      });
+    }
     renderList();
   });
 }
 
 async function saveRecord(data) {
   if (editingId) {
-    await update(ref(db, 'servis/' + editingId), { ...data, guncelleme: ts() });
+    const existing = getRecordByKey(editingId) || {};
+    const updated = { ...existing, ...data, guncelleme: ts() };
+    await update(ref(db, 'servis/' + editingId), { ...data, guncelleme: updated.guncelleme });
+    await upsertPublic(existing.servisNo, updated);
     showToast('Kayıt güncellendi ✓');
   } else {
     const newRef = push(ref(db, 'servis'));
     const id = genId();
-    await set(newRef, { ...data, firebaseKey: newRef.key, servisNo: id, olusturma: ts() });
+    const created = { ...data, firebaseKey: newRef.key, servisNo: id, olusturma: ts() };
+    await set(newRef, created);
+    await upsertPublic(id, created);
     showToast('Yeni kayıt oluşturuldu ✓');
   }
   showView('list');
@@ -82,14 +133,81 @@ async function saveRecord(data) {
 
 window.deleteRecord = async function(key) {
   if (!confirm('Bu kaydı silmek istediğinizden emin misiniz?')) return;
+  const existing = getRecordByKey(key) || {};
   await remove(ref(db, 'servis/' + key));
+  await removePublic(existing.servisNo);
   showToast('Kayıt silindi.');
   showView('list');
 };
 
 window.updateStatus = async function(key, status) {
+  const existing = getRecordByKey(key) || {};
   await update(ref(db, 'servis/' + key), { durum: status, guncelleme: ts() });
+  if (existing.servisNo) {
+    await update(ref(db, 'servis_public/' + existing.servisNo), { durum: status, guncelleme: ts() });
+  }
   showToast('Durum güncellendi ✓');
+};
+
+// ── PUBLIC QUERY (NO LOGIN) ───────────────────────────────────────────────
+window.doPublicQuery = async function() {
+  const input = document.getElementById('q_servisNo');
+  const btn = document.getElementById('queryBtn');
+  const err = document.getElementById('queryErr');
+  const out = document.getElementById('queryResult');
+  if (!input || !btn || !err || !out) return;
+
+  const servisNo = (input.value || '').trim().toUpperCase();
+  err.textContent = '';
+  out.style.display = 'none';
+  out.innerHTML = '';
+
+  if (!servisNo) {
+    err.textContent = 'Lütfen Servis No giriniz.';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Sorgulanıyor…';
+  try {
+    const snap = await get(ref(db, 'servis_public/' + servisNo));
+    if (!snap.exists()) {
+      err.textContent = 'Kayıt bulunamadı.';
+      return;
+    }
+    const r = snap.val() || {};
+    out.innerHTML = `
+      <h3>Servis Durumu</h3>
+      <div class="q-row"><span>Servis No</span><strong>${r.servisNo || servisNo}</strong></div>
+      <div class="q-row"><span>Durum</span><strong>${statusLabel(r.durum)}</strong></div>
+      <div class="q-row"><span>Son Güncelleme</span><strong>${r.guncelleme || r.olusturma || '—'}</strong></div>
+      <h3 style="margin-top:1rem">Müşteri Bilgileri</h3>
+      <div class="q-row"><span>Ad Soyad</span><strong>${(r.ad||'') + ' ' + (r.soyad||'')}</strong></div>
+      <div class="q-row"><span>Telefon</span><strong>${r.tel || '—'}</strong></div>
+      <h3 style="margin-top:1rem">Cihaz Bilgileri</h3>
+      <div class="q-row"><span>Marka / Model</span><strong>${(r.marka||'—') + ' ' + (r.model||'')}</strong></div>
+      <div class="q-row"><span>IMEI</span><strong>${r.imei || '—'}</strong></div>
+      <div class="q-row"><span>Renk</span><strong>${r.renk || '—'}</strong></div>
+      <div class="q-row"><span>Aksesuar</span><strong>${r.aksesuar || '—'}</strong></div>
+      <h3 style="margin-top:1rem">Parça & Ödeme</h3>
+      <div class="q-row"><span>Değişen Parça</span><strong>${r.degistirilenparca || '—'}</strong></div>
+      <div class="q-row"><span>Ödenen</span><strong>${(r.alinanOdeme !== '' && r.alinanOdeme != null) ? (r.alinanOdeme + ' ₺') : '—'}</strong></div>
+      ${(r.odemeYontemi || r.odemeTarihi) ? `
+      <div class="q-row"><span>Ödeme Yöntemi</span><strong>${r.odemeYontemi || '—'}</strong></div>
+      <div class="q-row"><span>Ödeme Tarihi</span><strong>${r.odemeTarihi || '—'}</strong></div>
+      ` : ''}
+    `;
+    out.style.display = 'block';
+  } catch (e) {
+    err.textContent = 'Sorgu yapılamadı. Lütfen tekrar deneyiniz.';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Sorgula';
+  }
+};
+
+window.doQueryKey = function(e) {
+  if (e.key === 'Enter') window.doPublicQuery();
 };
 
 // ── VIEWS ─────────────────────────────────────────────────────────────────
@@ -386,6 +504,16 @@ window.printReceipt = function(key) {
     </div>
   </div>` : ''}
 
+  ${((r.alinanOdeme !== '' && r.alinanOdeme != null) || r.odemeTarihi || r.odemeYontemi) ? `
+  <div class="section" style="margin-bottom:7px">
+    <div class="section-title">Ödeme Bilgileri</div>
+    <div class="section-body">
+      ${r.odemeYontemi ? `<div class="row"><span class="lbl">Ödeme Yöntemi</span><span class="val">${r.odemeYontemi}</span></div>` : ''}
+      ${(r.alinanOdeme !== '' && r.alinanOdeme != null) ? `<div class="row"><span class="lbl">Alınan Ödeme</span><span class="val">${r.alinanOdeme} ₺</span></div>` : ''}
+      ${r.odemeTarihi ? `<div class="row"><span class="lbl">Ödeme Tarihi</span><span class="val">${r.odemeTarihi}</span></div>` : ''}
+    </div>
+  </div>` : ''}
+
   <div class="sig-row">
     <div class="sig-box">
       <div class="sig-label">Müşteri Onayı ve İmzası</div>
@@ -588,6 +716,7 @@ window.printReceipt = function(key) {
 // ── TOAST ─────────────────────────────────────────────────────────────────
 function showToast(msg) {
   const t = document.getElementById('toast');
+  if (!t) return;
   t.textContent = msg;
   t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 2800);

@@ -25,11 +25,13 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
   display:flex;align-items:center;justify-content:center;min-height:100vh;
   background:radial-gradient(ellipse at 30% 20%, #1e1b4b 0%, var(--bg) 60%);
 }
+.login-container{display:flex;gap:1.25rem;align-items:flex-start;justify-content:center;flex-wrap:wrap;padding:1rem}
 .login-card{
   background:var(--surface);border:1px solid var(--border);border-radius:16px;
   padding:2.5rem 2rem;width:360px;
   box-shadow:0 0 60px #6366f120;
 }
+.query-card{padding:2.5rem 2rem}
 .login-logo{text-align:center;margin-bottom:1.5rem}
 .login-logo .brand{font-size:2rem;font-weight:700;color:#fff;letter-spacing:-1px}
 .login-logo .brand span{color:var(--pink)}
@@ -49,6 +51,21 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 #loginBtn:hover{opacity:.9;transform:translateY(-1px)}
 #loginBtn:disabled{opacity:.5;cursor:default;transform:none}
 #loginErr{color:var(--red);font-size:.85rem;margin-top:.75rem;text-align:center;min-height:1.2rem}
+
+#queryBtn{
+  width:100%;margin-top:1.5rem;padding:.8rem;background:linear-gradient(135deg,#0ea5e9,#2563eb);
+  border:none;border-radius:8px;color:#fff;font-size:1rem;font-weight:600;
+  cursor:pointer;transition:opacity .2s,transform .1s;font-family:inherit;
+}
+#queryBtn:hover{opacity:.9;transform:translateY(-1px)}
+#queryBtn:disabled{opacity:.5;cursor:default;transform:none}
+#queryErr{color:var(--red);font-size:.85rem;margin-top:.75rem;text-align:center;min-height:1.2rem}
+.query-result{margin-top:1rem;padding:1rem;border:1px solid var(--border);border-radius:12px;background:var(--surface2);display:none}
+.query-result h3{font-size:.85rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:.75rem}
+.query-result .q-row{display:flex;justify-content:space-between;gap:1rem;padding:.35rem 0;border-bottom:1px solid var(--border)}
+.query-result .q-row:last-child{border-bottom:none}
+.query-result .q-row span{color:var(--text3);font-size:.85rem}
+.query-result .q-row strong{color:var(--text);font-size:.9rem;font-weight:600;text-align:right}
 
 /* ── APP LAYOUT ── */
 #appScreen{display:none}

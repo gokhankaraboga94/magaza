@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mobilfon – Admin Panel</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./styles.css">
+
+<!-- Firebase SDKs -->
+<script type="module" src="./firebase.js"></script>
+<script type="module" src="./app.js"></script>
+</head>
+<body>
+
+<!-- ─────────────── LOGIN (ADMIN) ─────────────── -->
+<div id="loginScreen">
+  <div class="login-container">
+    <div class="login-card">
+      <div class="login-logo">
+        <div class="brand">mobilfon<span> ›</span></div>
+        <div class="sub">Admin Panel</div>
+      </div>
+      <label>E-posta</label>
+      <input type="email" id="loginEmail" placeholder="admin@servis.com" onkeydown="doLoginKey(event)">
+      <label>Şifre</label>
+      <input type="password" id="loginPass" placeholder="••••••••" onkeydown="doLoginKey(event)">
+      <button id="loginBtn" onclick="doLogin()">Giriş Yap</button>
+      <div id="loginErr"></div>
+      <div style="margin-top:1rem;text-align:center;font-size:.85rem;color:var(--text3)">
+        Müşteri sorgu için: <a href="./index.html" style="color:var(--accent2);text-decoration:none">index.html</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─────────────── APP (ADMIN) ─────────────── -->
+<div id="appScreen">
+  <div class="topbar">
+    <div class="topbar-brand">
+      <div class="brand">mobilfon<span> ›</span></div>
+      <div class="pill">TEKNİK SERVİS</div>
+    </div>
+    <div class="topbar-right">
+      <span class="email" id="userEmail"></span>
+      <button class="btn-logout" onclick="doLogout()">Çıkış</button>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <div id="viewList">
+      <div class="page-header">
+        <div>
+          <h1>📋 Servis Kayıtları</h1>
+          <p>Tüm kayıtları görüntüle, düzenle, sil veya yeni kayıt oluştur</p>
+        </div>
+        <button class="btn btn-primary" onclick="showView('form')">+ Yeni Kayıt</button>
+      </div>
+      <div class="list-toolbar">
+        <input class="search-box" id="searchBox" placeholder="🔍  Ad, tel, marka, model, servis no ara…">
+        <select class="filter-sel" id="filterStatus">
+          <option value="">Tüm Durumlar</option>
+          <option value="onarim">🔧 Onarımda</option>
+          <option value="parca">📦 Parça Bekliyor</option>
+          <option value="test">🔬 Test Ediliyor</option>
+          <option value="hazir">✅ Hazır</option>
+          <option value="teslim">🎁 Teslim Edildi</option>
+        </select>
+        <div class="count-badge">Toplam: <strong id="totalCount">0</strong></div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Durum</th><th>Servis No</th><th>Müşteri</th><th>Telefon</th>
+              <th>Cihaz</th><th>Arıza</th><th>Tarih</th><th>İşlem</th>
+            </tr>
+          </thead>
+          <tbody id="recordsTbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="viewForm" style="display:none">
+      <div class="page-header">
+        <div>
+          <h1 id="formTitle">➕ Yeni Servis Kaydı</h1>
+          <p id="servisNoDisplay" style="color:var(--accent2);font-family:'JetBrains Mono';font-size:.85rem"></p>
+        </div>
+        <button class="btn btn-ghost" onclick="showView('list')">← Geri</button>
+      </div>
+
+      <form class="form-card" onsubmit="submitForm(event)">
+
+        <div class="form-section">
+          <div class="form-section-title">👤 Müşteri Bilgileri</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Ad <span style="color:var(--red)">*</span></label>
+              <input type="text" id="f_ad" required placeholder="Ad">
+            </div>
+            <div class="form-group">
+              <label>Soyad <span style="color:var(--red)">*</span></label>
+              <input type="text" id="f_soyad" required placeholder="Soyad">
+            </div>
+            <div class="form-group">
+              <label>Telefon <span style="color:var(--red)">*</span></label>
+              <input type="tel" id="f_tel" required placeholder="0555 000 00 00">
+            </div>
+            <div class="form-group">
+              <label>TC Kimlik No <span class="opt">(opsiyonel)</span></label>
+              <input type="text" id="f_tc" placeholder="11 haneli TC No" maxlength="11">
+            </div>
+            <div class="form-group" style="grid-column:1/-1">
+              <label>Adres <span class="opt">(opsiyonel)</span></label>
+              <input type="text" id="f_adres" placeholder="Açık adres">
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <div class="form-section-title">📱 Cihaz Bilgileri</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Marka <span style="color:var(--red)">*</span></label>
+              <input type="text" id="f_marka" required placeholder="Samsung, Apple, Xiaomi…">
+            </div>
+            <div class="form-group">
+              <label>Model <span style="color:var(--red)">*</span></label>
+              <input type="text" id="f_model" required placeholder="Galaxy S24, iPhone 15…">
+            </div>
+            <div class="form-group">
+              <label>IMEI No <span class="opt">(opsiyonel)</span></label>
+              <input type="text" id="f_imei" placeholder="15 haneli IMEI" maxlength="17">
+            </div>
+            <div class="form-group">
+              <label>Renk <span class="opt">(opsiyonel)</span></label>
+              <input type="text" id="f_renk" placeholder="Siyah, Beyaz…">
+            </div>
+            <div class="form-group" style="grid-column:1/-1">
+              <label>Gelen Aksesuar <span class="opt">(opsiyonel)</span></label>
+              <input type="text" id="f_aksesuar" placeholder="Şarj aleti, kulaklık, kılıf…">
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <div class="form-section-title">🔧 Arıza & Notlar</div>
+          <div class="form-grid">
+            <div class="form-group" style="grid-column:1/-1">
+              <label>Arıza / Şikayet <span style="color:var(--red)">*</span></label>
+              <textarea id="f_ariza" required placeholder="Müşterinin bildirdiği arıza açıklaması…"></textarea>
+            </div>
+            <div class="form-group" style="grid-column:1/-1">
+              <label>Müşteri Notu <span class="opt">(opsiyonel)</span></label>
+              <textarea id="f_notlar" placeholder="Ekstra notlar, talepler…"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <div class="form-section-title">🛠️ Teknik Servis Notları</div>
+          <div class="form-grid">
+            <div class="form-group" style="grid-column:1/-1">
+              <label>Teknik Notlar</label>
+              <textarea id="f_teknikNotlar" placeholder="Teknisyen notları, yapılan işlemler…" style="min-height:90px"></textarea>
+            </div>
+            <div class="form-group" style="grid-column:1/-1">
+              <label>Değiştirilen Parçalar</label>
+              <textarea id="f_degistirilenparca" placeholder="Değiştirilen parça adı, kodu…"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <div class="form-section-title">📌 Durum</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Servis Durumu</label>
+              <select id="f_durum">
+                <option value="onarim">🔧 Onarımda</option>
+                <option value="parca">📦 Parça Bekliyor</option>
+                <option value="test">🔬 Test Ediliyor</option>
+                <option value="hazir">✅ Hazır</option>
+                <option value="teslim">🎁 Teslim Edildi</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section internal-section">
+          <div class="form-section-title">💳 Ödeme & Maliyet <em style="font-size:.7rem;font-weight:400;color:var(--text3)">(Müşteri fişinde GÖRÜNMEYECEKTİR)</em></div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Ödeme Yöntemi</label>
+              <select id="f_odemeYontemi">
+                <option value="">— Seçiniz —</option>
+                <option value="Nakit">Nakit</option>
+                <option value="Kredi Kartı">Kredi Kartı</option>
+                <option value="Havale/EFT">Havale / EFT</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Maliyet (₺)</label>
+              <input type="number" id="f_maliyet" placeholder="0.00" min="0" step="0.01">
+            </div>
+            <div class="form-group">
+              <label>Alınan Ödeme (₺)</label>
+              <input type="number" id="f_alinanOdeme" placeholder="0.00" min="0" step="0.01">
+            </div>
+            <div class="form-group">
+              <label>Ödeme Tarihi</label>
+              <input type="date" id="f_odemeTarihi">
+            </div>
+          </div>
+        </div>
+
+        <div class="form-footer">
+          <button type="button" class="btn btn-ghost" onclick="showView('list')">İptal</button>
+          <button type="submit" class="btn btn-primary">💾 Kaydet</button>
+        </div>
+      </form>
+    </div>
+
+    <div id="viewDetail" style="display:none">
+      <div style="margin-bottom:1rem">
+        <button class="btn btn-ghost" onclick="showView('list')">← Listeye Dön</button>
+      </div>
+      <div id="detailContent"></div>
+    </div>
+
+  </div>
+</div>
+
+<div id="toast"></div>
+
+</body>
+</html>
