@@ -24,17 +24,39 @@ function initEmailJs() {
   if (!isAdminPage) return;
   if (emailJsReady) return;
   const emailjs = window.emailjs;
-  if (!emailjs || typeof emailjs.init !== 'function') return;
-  emailjs.init(EMAILJS_PUBLIC_KEY);
-  emailJsReady = true;
+  if (!emailjs || typeof emailjs.init !== 'function') {
+    console.warn('[EmailJS] SDK yüklenmedi veya init fonksiyonu yok.');
+    return false;
+  }
+  try {
+    emailjs.init(EMAILJS_PUBLIC_KEY);
+    emailJsReady = true;
+    console.log('[EmailJS] init ok');
+    return true;
+  } catch (e) {
+    console.error('[EmailJS] init error', e);
+    return false;
+  }
 }
 
 async function sendReadyEmail(r) {
-  initEmailJs();
+  const initOk = initEmailJs();
   const emailjs = window.emailjs;
-  if (!emailJsReady || !emailjs || typeof emailjs.send !== 'function') return;
+  if (!emailJsReady || !emailjs || typeof emailjs.send !== 'function') {
+    console.warn('[EmailJS] send çağrılamadı. emailJsReady:', emailJsReady, 'emailjs:', emailjs);
+    showToast('E-posta servisi hazır değil.');
+    return;
+  }
   const toEmail = (r?.email || '').trim();
-  if (!toEmail) return;
+  if (!toEmail) {
+    console.warn('[EmailJS] Kayıtta e-posta yok, gönderim atlandı.', r);
+    showToast('Kayıtta e-posta yok.');
+    return;
+  }
+  if (!initOk && !emailJsReady) {
+    showToast('E-posta servisi başlatılamadı.');
+    return;
+  }
 
   const queryUrl = `https://mobilfon-tr.vercel.app/?servisNo=${encodeURIComponent(r.servisNo || '')}`;
   const params = {
@@ -56,10 +78,14 @@ async function sendReadyEmail(r) {
   };
 
   try {
-    await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, params);
+    console.log('[EmailJS] sending…', { service: EMAILJS_SERVICE_ID, template: EMAILJS_TEMPLATE_ID, toEmail, params });
+    const resp = await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, params);
+    console.log('[EmailJS] send response', resp);
     showToast('Hazır bildirimi e-posta ile gönderildi ✓');
-  } catch (_) {
-    showToast('E-posta gönderilemedi.');
+  } catch (e) {
+    console.error('[EmailJS] send error', e);
+    const msg = (e && (e.text || e.message)) ? (e.text || e.message) : '';
+    showToast('E-posta gönderilemedi.' + (msg ? (' (' + msg + ')') : ''));
   }
 }
 
