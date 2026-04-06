@@ -58,21 +58,35 @@ async function sendReadyEmail(r) {
     return;
   }
 
+  const fullName = ((r.ad || '') + ' ' + (r.soyad || '')).trim() || 'Müşterimiz';
+  const servisNo = (r.servisNo || '').toString();
+
   const queryUrl = `https://mobilfon-tr.vercel.app/?servisNo=${encodeURIComponent(r.servisNo || '')}`;
+  const subjectText = `Mobilfon Teknik Servis – Cihazınız Hazır (Servis No: ${servisNo})`;
+  const messageText = `Sayın ${fullName}, cihazınız hazırdır. Servis No: ${servisNo}. Lütfen mağazamıza gelip teslim alınız.\n\nCihaz durumunu sorgulamak için: ${queryUrl}`;
+  const messageHtml = `Sayın <strong>${fullName}</strong>, cihazınız <strong>hazırdır</strong>.<br>Servis No: <strong>${servisNo}</strong><br><br>Lütfen mağazamıza gelip teslim alınız.<br><br>Cihaz durumunu sorgulamak için: <a href="${queryUrl}">${queryUrl}</a>`;
   const params = {
     to_email: toEmail,
     user_email: toEmail,
     email: toEmail,
-    to_name: ((r.ad || '') + ' ' + (r.soyad || '')).trim(),
-    ad_soyad: ((r.ad || '') + ' ' + (r.soyad || '')).trim(),
-    customer_name: ((r.ad || '') + ' ' + (r.soyad || '')).trim(),
-    servis_no: r.servisNo || '',
-    servisNo: r.servisNo || '',
-    service_no: r.servisNo || '',
+    to_name: fullName,
+    ad_soyad: fullName,
+    customer_name: fullName,
+    servis_no: servisNo,
+    servisNo: servisNo,
+    service_no: servisNo,
     durum: statusLabel('hazir'),
     status: statusLabel('hazir'),
     query_url: queryUrl,
     queryUrl,
+    subject: subjectText,
+    email_subject: subjectText,
+    title: subjectText,
+    message: messageText,
+    body: messageText,
+    message_text: messageText,
+    message_html: messageHtml,
+    html: messageHtml,
     marka: r.marka || '',
     model: r.model || ''
   };
