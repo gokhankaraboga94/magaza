@@ -240,6 +240,16 @@ window.doQueryKey = function(e) {
   if (e.key === 'Enter') window.doPublicQuery();
 };
 
+if (document.getElementById('q_servisNo')) {
+  const params = new URLSearchParams(window.location.search);
+  const q = params.get('servisNo');
+  if (q) {
+    const input = document.getElementById('q_servisNo');
+    input.value = normalizeServisNo(q);
+    window.doPublicQuery();
+  }
+}
+
 // ── VIEWS ─────────────────────────────────────────────────────────────────
 function showView(v, key) {
   currentView = v;
@@ -390,6 +400,8 @@ function renderDetail(key) {
 window.printReceipt = function(key) {
   const r = getRecordByKey(key);
   if (!r) return;
+  const queryUrl = `https://mobilfon-tr.vercel.app/?servisNo=${encodeURIComponent(r.servisNo || '')}`;
+  const qrImg = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&margin=0&data=${encodeURIComponent(queryUrl)}`;
   const win = window.open('', '_blank');
   win.document.write(`<!DOCTYPE html><html lang="tr"><head>
 <meta charset="UTF-8">
@@ -457,6 +469,10 @@ window.printReceipt = function(key) {
   .kvkk-sig-line{border-top:1px solid #9ca3af;margin-top:32px;padding-top:3px;font-size:6.8pt;color:#9ca3af;text-align:center}
   .kvkk-footer{border-top:1px solid #e5e7eb;margin-top:9px;padding-top:5px;font-size:6.8pt;color:#9ca3af;text-align:center;line-height:1.35}
   .highlight-box{background:#eff6ff;border:1px solid #bfdbfe;border-radius:5px;padding:6px 9px;margin:6px 0;font-size:7.2pt;color:#1e40af;line-height:1.4}
+  .query-box{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .query-box .q-left{min-width:0}
+  .query-box .q-url{word-break:break-all;font-weight:700}
+  .qr-img{width:26mm;height:26mm;object-fit:contain;background:#fff;border:1px solid #bfdbfe;border-radius:5px;padding:2mm}
 
   @media print{
     body{print-color-adjust:exact;-webkit-print-color-adjust:exact}
@@ -484,8 +500,12 @@ window.printReceipt = function(key) {
   <div class="doc-title">TEKNİK SERVİS KABUL FORMU</div>
   <div class="doc-sub">Bu belge cihazınızın servise teslim kaydıdır. Lütfen saklayınız.</div>
 
-  <div class="highlight-box">
-    Cihaz durumunu sorgulamak için: <strong>mobilfon-tr.vercel.app</strong>
+  <div class="highlight-box query-box">
+    <div class="q-left">
+      Cihaz durumunu sorgulamak için QR kodu okutun:<br>
+      <span class="q-url">${queryUrl}</span>
+    </div>
+    <img class="qr-img" src="${qrImg}" alt="Sorgulama QR">
   </div>
 
   <div class="status-row">
