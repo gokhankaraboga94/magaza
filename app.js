@@ -15,6 +15,54 @@ import {
 
 const isAdminPage = !!document.getElementById('appScreen');
 
+const EMAILJS_SERVICE_ID = 'service_cvystz7';
+const EMAILJS_TEMPLATE_ID = 'template_jj4wrk8';
+const EMAILJS_PUBLIC_KEY = 'JXceWP3PZjwHhxDJd';
+
+let emailJsReady = false;
+function initEmailJs() {
+  if (!isAdminPage) return;
+  if (emailJsReady) return;
+  const emailjs = window.emailjs;
+  if (!emailjs || typeof emailjs.init !== 'function') return;
+  emailjs.init(EMAILJS_PUBLIC_KEY);
+  emailJsReady = true;
+}
+
+async function sendReadyEmail(r) {
+  initEmailJs();
+  const emailjs = window.emailjs;
+  if (!emailJsReady || !emailjs || typeof emailjs.send !== 'function') return;
+  const toEmail = (r?.email || '').trim();
+  if (!toEmail) return;
+
+  const queryUrl = `https://mobilfon-tr.vercel.app/?servisNo=${encodeURIComponent(r.servisNo || '')}`;
+  const params = {
+    to_email: toEmail,
+    user_email: toEmail,
+    email: toEmail,
+    to_name: ((r.ad || '') + ' ' + (r.soyad || '')).trim(),
+    ad_soyad: ((r.ad || '') + ' ' + (r.soyad || '')).trim(),
+    customer_name: ((r.ad || '') + ' ' + (r.soyad || '')).trim(),
+    servis_no: r.servisNo || '',
+    servisNo: r.servisNo || '',
+    service_no: r.servisNo || '',
+    durum: statusLabel('hazir'),
+    status: statusLabel('hazir'),
+    query_url: queryUrl,
+    queryUrl,
+    marka: r.marka || '',
+    model: r.model || ''
+  };
+
+  try {
+    await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, params);
+    showToast('Hazır bildirimi e-posta ile gönderildi ✓');
+  } catch (_) {
+    showToast('E-posta gönderilemedi.');
+  }
+}
+
 // ── STATE ──────────────────────────────────────────────────────────────────
 let records = {};
 let editingId = null;
@@ -149,6 +197,9 @@ async function saveRecord(data) {
     const updated = { ...existing, ...data, guncelleme: ts() };
     await update(ref(db, 'servis/' + editingId), { ...data, guncelleme: updated.guncelleme });
     await upsertPublic(existing.servisNo, updated);
+    if (existing.durum !== updated.durum && updated.durum === 'hazir') {
+      await sendReadyEmail(updated);
+    }
     showToast('Kayıt güncellendi ✓');
   } else {
     const newRef = push(ref(db, 'servis'));
@@ -156,6 +207,9 @@ async function saveRecord(data) {
     const created = { ...data, firebaseKey: newRef.key, servisNo: id, olusturma: ts() };
     await set(newRef, created);
     await upsertPublic(id, created);
+    if (created.durum === 'hazir') {
+      await sendReadyEmail(created);
+    }
     showToast('Yeni kayıt oluşturuldu ✓');
   }
   showView('list');
@@ -175,6 +229,9 @@ window.updateStatus = async function(key, status) {
   await update(ref(db, 'servis/' + key), { durum: status, guncelleme: ts() });
   if (existing.servisNo) {
     await update(ref(db, 'servis_public/' + existing.servisNo), { durum: status, guncelleme: ts() });
+  }
+  if (existing.durum !== status && status === 'hazir') {
+    await sendReadyEmail({ ...existing, durum: status });
   }
   showToast('Durum güncellendi ✓');
 };
@@ -307,7 +364,7 @@ document.addEventListener('change', e => { if (e.target.id === 'filterStatus') r
 
 // ── FORM VIEW ─────────────────────────────────────────────────────────────
 function populateForm(rec) {
-  const fields = ['ad','soyad','tel','tc','adres','marka','model','imei','renk','ariza','aksesuar',
+  const fields = ['ad','soyad','tel','email','tc','adres','marka','model','imei','renk','ariza','aksesuar',
                   'notlar','teknikNotlar','degistirilenparca','durum',
                   'odemeYontemi','maliyet','alinanOdeme','odemeTarihi'];
   fields.forEach(f => {
@@ -321,8 +378,13 @@ function populateForm(rec) {
 window.submitForm = function(e) {
   e.preventDefault();
   const get = id => document.getElementById('f_'+id)?.value || '';
+  const email = get('email').trim();
+  if (!email) {
+    showToast('E-posta zorunludur.');
+    return;
+  }
   const data = {
-    ad: get('ad'), soyad: get('soyad'), tel: get('tel'), tc: get('tc'), adres: get('adres'),
+    ad: get('ad'), soyad: get('soyad'), tel: get('tel'), email, tc: get('tc'), adres: get('adres'),
     marka: get('marka'), model: get('model'), imei: get('imei'), renk: get('renk'),
     ariza: get('ariza'), aksesuar: get('aksesuar'), notlar: get('notlar'),
     teknikNotlar: get('teknikNotlar'), degistirilenparca: get('degistirilenparca'),
