@@ -22,7 +22,37 @@ let currentView = 'list'; // list | form | detail
 let hasSyncedPublic = false;
 
 // ── HELPERS ───────────────────────────────────────────────────────────────
-function genId() { return Date.now().toString(36).toUpperCase(); }
+function random5Digit() {
+  return Math.floor(10000 + Math.random() * 90000).toString();
+}
+
+function normalizeServisNo(input) {
+  const v = (input || '').toString().trim().toUpperCase();
+  if (!v) return '';
+  if (/^\d{5}$/.test(v)) return 'M' + v;
+  if (/^M\d{5}$/.test(v)) return v;
+  return v;
+}
+
+function servisNoExistsLocal(servisNo) {
+  const n = normalizeServisNo(servisNo);
+  return Object.values(records).some(r => normalizeServisNo(r?.servisNo) === n);
+}
+
+async function genServisNo() {
+  for (let i = 0; i < 30; i++) {
+    const servisNo = 'M' + random5Digit();
+    if (servisNoExistsLocal(servisNo)) continue;
+    try {
+      const snap = await get(ref(db, 'servis_public/' + servisNo));
+      if (snap.exists()) continue;
+    } catch (_) {
+      // ignore
+    }
+    return servisNo;
+  }
+  return 'M' + random5Digit();
+}
 function ts() { return new Date().toLocaleString('tr-TR'); }
 function statusLabel(s) {
   const m = { onarim:'🔧 Onarımda', parca:'📦 Parça Bekliyor', test:'🔬 Test Ediliyor', hazir:'✅ Hazır', teslim:'🎁 Teslim Edildi' };
@@ -122,7 +152,7 @@ async function saveRecord(data) {
     showToast('Kayıt güncellendi ✓');
   } else {
     const newRef = push(ref(db, 'servis'));
-    const id = genId();
+    const id = await genServisNo();
     const created = { ...data, firebaseKey: newRef.key, servisNo: id, olusturma: ts() };
     await set(newRef, created);
     await upsertPublic(id, created);
@@ -157,7 +187,7 @@ window.doPublicQuery = async function() {
   const out = document.getElementById('queryResult');
   if (!input || !btn || !err || !out) return;
 
-  const servisNo = (input.value || '').trim().toUpperCase();
+  const servisNo = normalizeServisNo(input.value);
   err.textContent = '';
   out.style.display = 'none';
   out.innerHTML = '';
@@ -453,6 +483,10 @@ window.printReceipt = function(key) {
 
   <div class="doc-title">TEKNİK SERVİS KABUL FORMU</div>
   <div class="doc-sub">Bu belge cihazınızın servise teslim kaydıdır. Lütfen saklayınız.</div>
+
+  <div class="highlight-box">
+    Cihaz durumunu sorgulamak için: <strong>mobilfon-tr.vercel.app</strong>
+  </div>
 
   <div class="status-row">
     <span class="badge-print">Servis No: ${r.servisNo}</span>
