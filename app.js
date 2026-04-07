@@ -480,7 +480,6 @@ window.doPublicQuery = async function() {
       const last6 = r.imeiLast6 || imeiLast6(r.imei);
       out.innerHTML = `
         <h3>Servis Durumu</h3>
-        <div class="q-row"><span>Servis No</span><strong>${r.servisNo || servisNo}</strong></div>
         <div class="q-row"><span>Durum</span><strong>${statusLabel(r.durum)}</strong></div>
         <div class="q-row"><span>Son Güncelleme</span><strong>${r.guncelleme || r.olusturma || '—'}</strong></div>
         <h3 style="margin-top:1rem">Cihaz</h3>
