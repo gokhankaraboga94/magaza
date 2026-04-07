@@ -131,6 +131,52 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
   font-size:.8rem;padding:.3rem .8rem;border-radius:20px
 }
 
+/* ── AGING DASHBOARD ── */
+.aging-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1rem 1.1rem;margin-bottom:1.25rem}
+.aging-head{display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:.9rem}
+.aging-title{font-size:1.05rem;font-weight:800;letter-spacing:-.3px}
+.aging-sub{font-size:.82rem;color:var(--text3);margin-top:.15rem}
+.aging-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:.85rem}
+.aging-card{
+  background:linear-gradient(180deg,#1b1b33,#16162a);
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:.8rem .9rem;
+  cursor:pointer;
+  text-align:left;
+  color:var(--text);
+  font-family:inherit;
+  transition:transform .12s, border-color .12s, box-shadow .12s;
+  min-height:92px;
+}
+.aging-card:hover{transform:translateY(-1px);border-color:var(--border2);box-shadow:0 10px 25px #00000030}
+.aging-card.active{box-shadow:0 0 0 3px #ffffff10, 0 10px 30px #00000040}
+.aging-dot{width:16px;height:16px;border-radius:999px;border:2px solid #fff3;display:inline-block}
+.aging-count{font-size:1.65rem;font-weight:900;line-height:1;margin-top:.25rem}
+.aging-label{font-size:.82rem;font-weight:800;margin-top:.35rem}
+.aging-desc{font-size:.75rem;color:var(--text3);margin-top:.1rem}
+
+.aging-white{--c:#e5e7eb}
+.aging-green{--c:#22c55e}
+.aging-yellow{--c:#facc15}
+.aging-red{--c:#ef4444}
+.aging-white .aging-dot{background:var(--c)}
+.aging-green .aging-dot{background:var(--c)}
+.aging-yellow .aging-dot{background:var(--c)}
+.aging-red .aging-dot{background:var(--c)}
+.aging-white.active{border-color:#e5e7eb70}
+.aging-green.active{border-color:#22c55e70}
+.aging-yellow.active{border-color:#facc1570}
+.aging-red.active{border-color:#ef444470}
+
+.aging-list{margin-top:1rem}
+.aging-list-head{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-bottom:.6rem}
+.aging-list-title{font-size:.95rem;font-weight:800;color:var(--text2)}
+
+@media(max-width:900px){
+  .aging-grid{grid-template-columns:repeat(2,1fr)}
+}
+
 /* ── TABLE ── */
 .table-wrap{border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;overflow-x:auto}
 table{width:100%;border-collapse:collapse;min-width:750px}

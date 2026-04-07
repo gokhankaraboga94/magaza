@@ -59,6 +59,59 @@
         </div>
         <button class="btn btn-primary" onclick="showView('form')">+ Yeni Kayıt</button>
       </div>
+
+      <div class="aging-wrap" id="agingDashboard">
+        <div class="aging-head">
+          <div>
+            <div class="aging-title">⏱️ Zaman Aşımı Takip Dashboard</div>
+            <div class="aging-sub">Bekleyen cihazların süre bazlı dağılımı</div>
+          </div>
+          <button class="btn btn-ghost" id="agingClearBtn" onclick="clearAgeBucket()" style="display:none">Filtreyi Kaldır</button>
+        </div>
+        <div class="aging-grid">
+          <button class="aging-card aging-white" onclick="selectAgeBucket('white')">
+            <div class="aging-dot"></div>
+            <div class="aging-count" id="agingCountWhite">0</div>
+            <div class="aging-label">0-2 Gün Bekleyenler</div>
+            <div class="aging-desc">Yeni Giriş</div>
+          </button>
+          <button class="aging-card aging-green" onclick="selectAgeBucket('green')">
+            <div class="aging-dot"></div>
+            <div class="aging-count" id="agingCountGreen">0</div>
+            <div class="aging-label">3-7 Gün Bekleyenler</div>
+            <div class="aging-desc">Normal Süre</div>
+          </button>
+          <button class="aging-card aging-yellow" onclick="selectAgeBucket('yellow')">
+            <div class="aging-dot"></div>
+            <div class="aging-count" id="agingCountYellow">0</div>
+            <div class="aging-label">7-14 Gün Bekleyenler</div>
+            <div class="aging-desc">Dikkat Gerekli</div>
+          </button>
+          <button class="aging-card aging-red" onclick="selectAgeBucket('red')">
+            <div class="aging-dot"></div>
+            <div class="aging-count" id="agingCountRed">0</div>
+            <div class="aging-label">14+ Gün Bekleyenler</div>
+            <div class="aging-desc">Acil Müdahale</div>
+          </button>
+        </div>
+
+        <div class="aging-list" id="agingList" style="display:none">
+          <div class="aging-list-head">
+            <div class="aging-list-title" id="agingListTitle"></div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Servis No</th><th>Müşteri</th><th>Telefon</th><th>Cihaz</th><th>IMEI</th><th>Gün</th>
+                </tr>
+              </thead>
+              <tbody id="agingTbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
       <div class="list-toolbar">
         <input class="search-box" id="searchBox" placeholder="🔍  Ad, tel, marka, model, servis no ara…">
         <select class="filter-sel" id="filterStatus">

@@ -108,6 +108,8 @@ let records = {};
 let editingId = null;
 let currentView = 'list'; // list | form | detail
 let hasSyncedPublic = false;
+let selectedAgeBucket = null;
+let agingTimerStarted = false;
 
 // ── HELPERS ───────────────────────────────────────────────────────────────
 function random5Digit() {
@@ -121,6 +123,156 @@ function normalizeServisNo(input) {
   if (/^M\d{5}$/.test(v)) return v;
   return v;
 }
+
+function parseTrDateTime(str) {
+  const s = (str || '').toString().trim();
+  if (!s) return null;
+  const parts = s.split(' ');
+  const datePart = parts[0] || '';
+  const timePart = parts[1] || '';
+  const dParts = datePart.split(/[\.\/-]/).map(p => p.trim()).filter(Boolean);
+  if (dParts.length < 3) return null;
+  const d = parseInt(dParts[0], 10);
+  const m = parseInt(dParts[1], 10);
+  const y = parseInt(dParts[2], 10);
+  if (!y || !m || !d) return null;
+  let hh = 0, mm = 0, ss = 0;
+  if (timePart) {
+    const tParts = timePart.split(':');
+    hh = parseInt(tParts[0] || '0', 10) || 0;
+    mm = parseInt(tParts[1] || '0', 10) || 0;
+    ss = parseInt(tParts[2] || '0', 10) || 0;
+  }
+  const dt = new Date(y, m - 1, d, hh, mm, ss);
+  const ms = dt.getTime();
+  return Number.isFinite(ms) ? ms : null;
+}
+
+function recordCreatedAtMs(r) {
+  const v = r?.createdAtMs;
+  if (typeof v === 'number' && Number.isFinite(v) && v > 0) return v;
+  const parsed = parseTrDateTime(r?.olusturma);
+  return parsed || null;
+}
+
+function recordAgeDays(r, nowMs = Date.now()) {
+  const createdMs = recordCreatedAtMs(r);
+  if (!createdMs) return null;
+  const diff = nowMs - createdMs;
+  if (!Number.isFinite(diff)) return null;
+  return Math.max(0, Math.floor(diff / 86400000));
+}
+
+function ageBucketFromDays(days) {
+  if (days == null) return null;
+  if (days >= 14) return 'red';
+  if (days >= 7) return 'yellow';
+  if (days >= 3) return 'green';
+  return 'white';
+}
+
+function bucketLabel(bucket) {
+  const m = {
+    white: '0-2 Gün Bekleyenler · Yeni Giriş',
+    green: '3-7 Gün Bekleyenler · Normal Süre',
+    yellow: '7-14 Gün Bekleyenler · Dikkat Gerekli',
+    red: '14+ Gün Bekleyenler · Acil Müdahale'
+  };
+  return m[bucket] || '';
+}
+
+function updateAgingDashboard() {
+  const dash = document.getElementById('agingDashboard');
+  if (!dash) return;
+
+  const nowMs = Date.now();
+  const counts = { white: 0, green: 0, yellow: 0, red: 0 };
+
+  Object.values(records).forEach(r => {
+    if (!r) return;
+    if ((r.durum || '') === 'teslim') return;
+    const days = recordAgeDays(r, nowMs);
+    const bucket = ageBucketFromDays(days);
+    if (!bucket) return;
+    counts[bucket]++;
+  });
+
+  const setText = (id, v) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = String(v);
+  };
+  setText('agingCountWhite', counts.white);
+  setText('agingCountGreen', counts.green);
+  setText('agingCountYellow', counts.yellow);
+  setText('agingCountRed', counts.red);
+
+  ['white', 'green', 'yellow', 'red'].forEach(b => {
+    const btn = dash.querySelector('.aging-card.aging-' + b);
+    if (!btn) return;
+    btn.classList.toggle('active', selectedAgeBucket === b);
+  });
+
+  const clearBtn = document.getElementById('agingClearBtn');
+  if (clearBtn) clearBtn.style.display = selectedAgeBucket ? 'inline-flex' : 'none';
+
+  if (selectedAgeBucket) {
+    renderAgingList(selectedAgeBucket);
+  }
+}
+
+function ensureAgingTimer() {
+  if (!isAdminPage) return;
+  if (agingTimerStarted) return;
+  if (!document.getElementById('agingDashboard')) return;
+  agingTimerStarted = true;
+  setInterval(() => {
+    updateAgingDashboard();
+  }, 60 * 1000);
+}
+
+function renderAgingList(bucket) {
+  const list = document.getElementById('agingList');
+  const tbody = document.getElementById('agingTbody');
+  const title = document.getElementById('agingListTitle');
+  if (!list || !tbody || !title) return;
+
+  const nowMs = Date.now();
+  const rows = Object.values(records)
+    .filter(r => r && (r.durum || '') !== 'teslim')
+    .map(r => ({ r, days: recordAgeDays(r, nowMs) }))
+    .filter(x => x.days != null && ageBucketFromDays(x.days) === bucket)
+    .sort((a, b) => (b.days - a.days));
+
+  title.textContent = bucketLabel(bucket);
+  tbody.innerHTML = rows.map(({ r, days }) => {
+    const imei = (r.imei || '—').toString();
+    const device = ((r.marka || '—') + ' ' + (r.model || '')).trim();
+    const customer = ((r.ad || '') + ' ' + (r.soyad || '')).trim();
+    return `
+      <tr onclick="showView('detail','${r.firebaseKey}')" style="cursor:pointer">
+        <td><strong>${r.servisNo || '—'}</strong></td>
+        <td>${customer || '—'}</td>
+        <td>${r.tel || '—'}</td>
+        <td>${device || '—'}</td>
+        <td>${imei}</td>
+        <td><strong>${days}</strong></td>
+      </tr>`;
+  }).join('') || `<tr><td colspan="6" style="text-align:center;padding:1.25rem;color:#94a3b8">Kayıt bulunamadı</td></tr>`;
+
+  list.style.display = 'block';
+}
+
+window.selectAgeBucket = function(bucket) {
+  selectedAgeBucket = bucket;
+  updateAgingDashboard();
+};
+
+window.clearAgeBucket = function() {
+  selectedAgeBucket = null;
+  const list = document.getElementById('agingList');
+  if (list) list.style.display = 'none';
+  updateAgingDashboard();
+};
 
 function servisNoExistsLocal(servisNo) {
   const n = normalizeServisNo(servisNo);
@@ -151,12 +303,31 @@ function statusColor(s) {
   return m[s] || '#6b7280';
 }
 
+function imeiLast6(imei) {
+  const v = (imei || '').toString().replace(/\s+/g, '');
+  if (!v) return '';
+  const digits = v.replace(/\D+/g, '');
+  const src = digits || v;
+  return src.length >= 6 ? src.slice(-6) : src;
+}
+
 function toPublicRecord(r) {
-  return {
+  const base = {
     servisNo: r.servisNo || '',
     durum: r.durum || '',
     olusturma: r.olusturma || '',
-    guncelleme: r.guncelleme || '',
+    guncelleme: r.guncelleme || ''
+  };
+
+  if ((r.durum || '') === 'teslim') {
+    return {
+      ...base,
+      imeiLast6: imeiLast6(r.imei)
+    };
+  }
+
+  return {
+    ...base,
     ad: r.ad || '',
     soyad: r.soyad || '',
     tel: r.tel || '',
@@ -244,7 +415,7 @@ async function saveRecord(data) {
   } else {
     const newRef = push(ref(db, 'servis'));
     const id = await genServisNo();
-    const created = { ...data, firebaseKey: newRef.key, servisNo: id, olusturma: ts() };
+    const created = { ...data, firebaseKey: newRef.key, servisNo: id, olusturma: ts(), createdAtMs: Date.now() };
     await set(newRef, created);
     await upsertPublic(id, created);
     if (created.durum === 'hazir') {
@@ -266,9 +437,10 @@ window.deleteRecord = async function(key) {
 
 window.updateStatus = async function(key, status) {
   const existing = getRecordByKey(key) || {};
-  await update(ref(db, 'servis/' + key), { durum: status, guncelleme: ts() });
+  const guncelleme = ts();
+  await update(ref(db, 'servis/' + key), { durum: status, guncelleme });
   if (existing.servisNo) {
-    await update(ref(db, 'servis_public/' + existing.servisNo), { durum: status, guncelleme: ts() });
+    await upsertPublic(existing.servisNo, { ...existing, durum: status, guncelleme });
   }
   if (existing.durum !== status && status === 'hazir') {
     await sendReadyEmail({ ...existing, durum: status });
@@ -303,6 +475,21 @@ window.doPublicQuery = async function() {
       return;
     }
     const r = snap.val() || {};
+
+    if ((r.durum || '') === 'teslim') {
+      const last6 = r.imeiLast6 || imeiLast6(r.imei);
+      out.innerHTML = `
+        <h3>Servis Durumu</h3>
+        <div class="q-row"><span>Servis No</span><strong>${r.servisNo || servisNo}</strong></div>
+        <div class="q-row"><span>Durum</span><strong>${statusLabel(r.durum)}</strong></div>
+        <div class="q-row"><span>Son Güncelleme</span><strong>${r.guncelleme || r.olusturma || '—'}</strong></div>
+        <h3 style="margin-top:1rem">Cihaz</h3>
+        <div class="q-row"><span>IMEI (Son 6)</span><strong>${last6 || '—'}</strong></div>
+      `;
+      out.style.display = 'block';
+      return;
+    }
+
     out.innerHTML = `
       <h3>Servis Durumu</h3>
       <div class="q-row"><span>Servis No</span><strong>${r.servisNo || servisNo}</strong></div>
@@ -397,6 +584,9 @@ function renderList() {
         <button class="btn-sm btn-del" onclick="deleteRecord('${r.firebaseKey}')">🗑️</button>
       </td>
     </tr>`).join('') || `<tr><td colspan="8" style="text-align:center;padding:2rem;color:#94a3b8">Kayıt bulunamadı</td></tr>`;
+
+  updateAgingDashboard();
+  ensureAgingTimer();
 }
 
 document.addEventListener('input', e => { if (e.target.id === 'searchBox') renderList(); });
