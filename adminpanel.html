@@ -1,298 +1,66 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="tr">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mobilfon – Admin Panel</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="./styles.css">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Bakımdayız</title>
+    <style>
+      :root {
+        color-scheme: light;
+      }
 
-<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background: #0b1220;
+        color: #e7eefc;
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      }
 
-<!-- Firebase SDKs -->
-<script type="module" src="./firebase.js"></script>
-<script type="module" src="./app.js"></script>
-</head>
-<body>
+      .wrap {
+        text-align: center;
+        padding: 24px;
+      }
 
-<!-- ─────────────── LOGIN (ADMIN) ─────────────── -->
-<div id="loginScreen">
-  <div class="login-container">
-    <div class="login-card">
-      <div class="login-logo">
-        <div class="brand">mobilfon<span> ›</span></div>
-        <div class="sub">Admin Panel</div>
-      </div>
-      <label>E-posta</label>
-      <input type="email" id="loginEmail" placeholder="admin@servis.com" onkeydown="doLoginKey(event)">
-      <label>Şifre</label>
-      <input type="password" id="loginPass" placeholder="••••••••" onkeydown="doLoginKey(event)">
-      <button id="loginBtn" onclick="doLogin()">Giriş Yap</button>
-      <div id="loginErr"></div>
-      <div style="margin-top:1rem;text-align:center;font-size:.85rem;color:var(--text3)">
-        Müşteri sorgu için: <a href="./index.html" style="color:var(--accent2);text-decoration:none">index.html</a>
-      </div>
-    </div>
-  </div>
-</div>
+      .hourglass {
+        width: 72px;
+        height: 72px;
+        display: inline-block;
+        animation: spin 1.6s ease-in-out infinite;
+        transform-origin: 50% 50%;
+      }
 
-<!-- ─────────────── APP (ADMIN) ─────────────── -->
-<div id="appScreen">
-  <div class="topbar">
-    <div class="topbar-brand">
-      <div class="brand">mobilfon<span> ›</span></div>
-      <div class="pill">TEKNİK SERVİS</div>
-    </div>
-    <div class="topbar-right">
-      <span class="email" id="userEmail"></span>
-      <button class="btn-logout" onclick="doLogout()">Çıkış</button>
-    </div>
-  </div>
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        50% {
+          transform: rotate(180deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
 
-  <div class="content">
-
-    <div id="viewList">
-      <div class="page-header">
-        <div>
-          <h1>📋 Servis Kayıtları</h1>
-          <p>Tüm kayıtları görüntüle, düzenle, sil veya yeni kayıt oluştur</p>
-        </div>
-        <button class="btn btn-primary" onclick="showView('form')">+ Yeni Kayıt</button>
-      </div>
-
-      <div class="aging-wrap" id="agingDashboard">
-        <div class="aging-head">
-          <div>
-            <div class="aging-title">⏱️ Zaman Aşımı Takip Dashboard</div>
-            <div class="aging-sub">Bekleyen cihazların süre bazlı dağılımı</div>
-          </div>
-          <button class="btn btn-ghost" id="agingClearBtn" onclick="clearAgeBucket()" style="display:none">Filtreyi Kaldır</button>
-        </div>
-        <div class="aging-grid">
-          <button class="aging-card aging-white" onclick="selectAgeBucket('white')">
-            <div class="aging-dot"></div>
-            <div class="aging-count" id="agingCountWhite">0</div>
-            <div class="aging-label">0-2 Gün Bekleyenler</div>
-            <div class="aging-desc">Yeni Giriş</div>
-          </button>
-          <button class="aging-card aging-green" onclick="selectAgeBucket('green')">
-            <div class="aging-dot"></div>
-            <div class="aging-count" id="agingCountGreen">0</div>
-            <div class="aging-label">3-7 Gün Bekleyenler</div>
-            <div class="aging-desc">Normal Süre</div>
-          </button>
-          <button class="aging-card aging-yellow" onclick="selectAgeBucket('yellow')">
-            <div class="aging-dot"></div>
-            <div class="aging-count" id="agingCountYellow">0</div>
-            <div class="aging-label">7-14 Gün Bekleyenler</div>
-            <div class="aging-desc">Dikkat Gerekli</div>
-          </button>
-          <button class="aging-card aging-red" onclick="selectAgeBucket('red')">
-            <div class="aging-dot"></div>
-            <div class="aging-count" id="agingCountRed">0</div>
-            <div class="aging-label">14+ Gün Bekleyenler</div>
-            <div class="aging-desc">Acil Müdahale</div>
-          </button>
-        </div>
-
-        <div class="aging-list" id="agingList" style="display:none">
-          <div class="aging-list-head">
-            <div class="aging-list-title" id="agingListTitle"></div>
-          </div>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Servis No</th><th>Müşteri</th><th>Telefon</th><th>Cihaz</th><th>IMEI</th><th>Gün</th>
-                </tr>
-              </thead>
-              <tbody id="agingTbody"></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <div class="list-toolbar">
-        <input class="search-box" id="searchBox" placeholder="🔍  Ad, tel, marka, model, servis no ara…">
-        <select class="filter-sel" id="filterStatus">
-          <option value="">Tüm Durumlar</option>
-          <option value="onarim">🔧 Onarımda</option>
-          <option value="parca">📦 Parça Bekliyor</option>
-          <option value="test">🔬 Test Ediliyor</option>
-          <option value="hazir">✅ Hazır</option>
-          <option value="teslim">🎁 Teslim Edildi</option>
-        </select>
-        <div class="count-badge">Toplam: <strong id="totalCount">0</strong></div>
-      </div>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Durum</th><th>Servis No</th><th>Müşteri</th><th>Telefon</th>
-              <th>Cihaz</th><th>Arıza</th><th>Tarih</th><th>İşlem</th>
-            </tr>
-          </thead>
-          <tbody id="recordsTbody"></tbody>
-        </table>
-      </div>
-    </div>
-
-    <div id="viewForm" style="display:none">
-      <div class="page-header">
-        <div>
-          <h1 id="formTitle">➕ Yeni Servis Kaydı</h1>
-          <p id="servisNoDisplay" style="color:var(--accent2);font-family:'JetBrains Mono';font-size:.85rem"></p>
-        </div>
-        <button class="btn btn-ghost" onclick="showView('list')">← Geri</button>
-      </div>
-
-      <form class="form-card" onsubmit="submitForm(event)">
-
-        <div class="form-section">
-          <div class="form-section-title">👤 Müşteri Bilgileri</div>
-          <div class="form-grid">
-            <div class="form-group">
-              <label>Ad <span style="color:var(--red)">*</span></label>
-              <input type="text" id="f_ad" required placeholder="Ad">
-            </div>
-            <div class="form-group">
-              <label>Soyad <span style="color:var(--red)">*</span></label>
-              <input type="text" id="f_soyad" required placeholder="Soyad">
-            </div>
-            <div class="form-group">
-              <label>Telefon <span style="color:var(--red)">*</span></label>
-              <input type="tel" id="f_tel" required placeholder="0555 000 00 00">
-            </div>
-            <div class="form-group">
-              <label>E-posta <span style="color:var(--red)">*</span></label>
-              <input type="email" id="f_email" required placeholder="ornek@eposta.com">
-            </div>
-            <div class="form-group">
-              <label>TC Kimlik No <span class="opt">(opsiyonel)</span></label>
-              <input type="text" id="f_tc" placeholder="11 haneli TC No" maxlength="11">
-            </div>
-            <div class="form-group" style="grid-column:1/-1">
-              <label>Adres <span class="opt">(opsiyonel)</span></label>
-              <input type="text" id="f_adres" placeholder="Açık adres">
-            </div>
-          </div>
-        </div>
-
-        <div class="form-section">
-          <div class="form-section-title">📱 Cihaz Bilgileri</div>
-          <div class="form-grid">
-            <div class="form-group">
-              <label>Marka <span style="color:var(--red)">*</span></label>
-              <input type="text" id="f_marka" required placeholder="Samsung, Apple, Xiaomi…">
-            </div>
-            <div class="form-group">
-              <label>Model <span style="color:var(--red)">*</span></label>
-              <input type="text" id="f_model" required placeholder="Galaxy S24, iPhone 15…">
-            </div>
-            <div class="form-group">
-              <label>IMEI No <span class="opt">(opsiyonel)</span></label>
-              <input type="text" id="f_imei" placeholder="15 haneli IMEI" maxlength="17">
-            </div>
-            <div class="form-group">
-              <label>Renk <span class="opt">(opsiyonel)</span></label>
-              <input type="text" id="f_renk" placeholder="Siyah, Beyaz…">
-            </div>
-            <div class="form-group" style="grid-column:1/-1">
-              <label>Gelen Aksesuar <span class="opt">(opsiyonel)</span></label>
-              <input type="text" id="f_aksesuar" placeholder="Şarj aleti, kulaklık, kılıf…">
-            </div>
-          </div>
-        </div>
-
-        <div class="form-section">
-          <div class="form-section-title">🔧 Arıza & Notlar</div>
-          <div class="form-grid">
-            <div class="form-group" style="grid-column:1/-1">
-              <label>Arıza / Şikayet <span style="color:var(--red)">*</span></label>
-              <textarea id="f_ariza" required placeholder="Müşterinin bildirdiği arıza açıklaması…"></textarea>
-            </div>
-            <div class="form-group" style="grid-column:1/-1">
-              <label>Müşteri Notu <span class="opt">(opsiyonel)</span></label>
-              <textarea id="f_notlar" placeholder="Ekstra notlar, talepler…"></textarea>
-            </div>
-          </div>
-        </div>
-
-        <div class="form-section">
-          <div class="form-section-title">🛠️ Teknik Servis Notları</div>
-          <div class="form-grid">
-            <div class="form-group" style="grid-column:1/-1">
-              <label>Teknik Notlar</label>
-              <textarea id="f_teknikNotlar" placeholder="Teknisyen notları, yapılan işlemler…" style="min-height:90px"></textarea>
-            </div>
-            <div class="form-group" style="grid-column:1/-1">
-              <label>Değiştirilen Parçalar</label>
-              <textarea id="f_degistirilenparca" placeholder="Değiştirilen parça adı, kodu…"></textarea>
-            </div>
-          </div>
-        </div>
-
-        <div class="form-section">
-          <div class="form-section-title">📌 Durum</div>
-          <div class="form-grid">
-            <div class="form-group">
-              <label>Servis Durumu</label>
-              <select id="f_durum">
-                <option value="onarim">🔧 Onarımda</option>
-                <option value="parca">📦 Parça Bekliyor</option>
-                <option value="test">🔬 Test Ediliyor</option>
-                <option value="hazir">✅ Hazır</option>
-                <option value="teslim">🎁 Teslim Edildi</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        <div class="form-section internal-section">
-          <div class="form-section-title">💳 Ödeme & Maliyet <em style="font-size:.7rem;font-weight:400;color:var(--text3)">(Müşteri fişinde GÖRÜNMEYECEKTİR)</em></div>
-          <div class="form-grid">
-            <div class="form-group">
-              <label>Ödeme Yöntemi</label>
-              <select id="f_odemeYontemi">
-                <option value="">— Seçiniz —</option>
-                <option value="Nakit">Nakit</option>
-                <option value="Kredi Kartı">Kredi Kartı</option>
-                <option value="Havale/EFT">Havale / EFT</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>Maliyet (₺)</label>
-              <input type="number" id="f_maliyet" placeholder="0.00" min="0" step="0.01">
-            </div>
-            <div class="form-group">
-              <label>Alınan Ödeme (₺)</label>
-              <input type="number" id="f_alinanOdeme" placeholder="0.00" min="0" step="0.01">
-            </div>
-            <div class="form-group">
-              <label>Ödeme Tarihi</label>
-              <input type="date" id="f_odemeTarihi">
-            </div>
-          </div>
-        </div>
-
-        <div class="form-footer">
-          <button type="button" class="btn btn-ghost" onclick="showView('list')">İptal</button>
-          <button type="submit" class="btn btn-primary">💾 Kaydet</button>
-        </div>
-      </form>
-    </div>
-
-    <div id="viewDetail" style="display:none">
-      <div style="margin-bottom:1rem">
-        <button class="btn btn-ghost" onclick="showView('list')">← Listeye Dön</button>
-      </div>
-      <div id="detailContent"></div>
-    </div>
-
-  </div>
-</div>
-
-<div id="toast"></div>
-
-</body>
+      h1 {
+        margin: 14px 0 0;
+        font-size: 20px;
+        font-weight: 600;
+        letter-spacing: 0.2px;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="wrap" aria-label="Bakım sayfası">
+      <svg class="hourglass" viewBox="0 0 24 24" role="img" aria-label="Kum saati">
+        <path
+          fill="currentColor"
+          d="M6 2a1 1 0 0 0 0 2h1v2.2c0 1.4.62 2.72 1.7 3.6L11 12l-2.3 2.2A4.94 4.94 0 0 0 7 17.8V20H6a1 1 0 1 0 0 2h12a1 1 0 1 0 0-2h-1v-2.2c0-1.4-.62-2.72-1.7-3.6L13 12l2.3-2.2A4.94 4.94 0 0 0 17 6.2V4h1a1 1 0 1 0 0-2H6Zm3 4.2V4h6v2.2c0 .84-.37 1.64-1.02 2.24L12 10.29 10.02 8.44A3.15 3.15 0 0 1 9 6.2Zm6 11.6V20H9v-2.2c0-.84.37-1.64 1.02-2.24L12 13.71l1.98 1.85A3.15 3.15 0 0 1 15 17.8Z"
+        />
+      </svg>
+      <h1>Bakımdayız</h1>
+    </main>
+  </body>
 </html>
